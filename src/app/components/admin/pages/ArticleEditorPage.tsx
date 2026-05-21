@@ -70,8 +70,8 @@ export function ArticleEditorPage() {
   const [isLoading, setIsLoading] = useState(!isNewArticle);
   const dragIndex = useRef<number | null>(null);
   const dragOverIndex = useRef<number | null>(null);
+  const dragOverEl = useRef<HTMLElement | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
-  const [dragOverId, setDragOverId] = useState<string | null>(null);
 
   // 自動保存用
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -148,21 +148,44 @@ export function ArticleEditorPage() {
     dragIndex.current = index;
     setDraggingId(id);
     e.dataTransfer.effectAllowed = 'move';
+    // ゴースト画像のちらつきを防ぐため少し遅らせてopacity変更
+    setTimeout(() => {
+      (e.target as HTMLElement).style.opacity = '0.4';
+    }, 0);
   };
 
-  const handleDragOver = (e: React.DragEvent, index: number, id: string) => {
+  const handleDragOver = (e: React.DragEvent, index: number) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
+    // 前のhover要素からクラスを除去
+    if (dragOverEl.current) {
+      dragOverEl.current.classList.remove('ring-2', 'ring-amber-400', '-translate-y-0.5');
+    }
+    // 現在の要素にクラスを付与（再レンダリングなし）
+    const el = e.currentTarget as HTMLElement;
+    el.classList.add('ring-2', 'ring-amber-400', '-translate-y-0.5');
+    dragOverEl.current = el;
     dragOverIndex.current = index;
-    setDragOverId(id);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    // 子要素へ移動した場合は無視
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+    const el = e.currentTarget as HTMLElement;
+    el.classList.remove('ring-2', 'ring-amber-400', '-translate-y-0.5');
+    if (dragOverEl.current === el) dragOverEl.current = null;
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     const from = dragIndex.current;
     const to = dragOverIndex.current;
+    // hover強調を除去
+    if (dragOverEl.current) {
+      dragOverEl.current.classList.remove('ring-2', 'ring-amber-400', '-translate-y-0.5');
+      dragOverEl.current = null;
+    }
     if (from === null || to === null || from === to) return;
-
     const reordered = [...sections];
     const [moved] = reordered.splice(from, 1);
     reordered.splice(to, 0, moved);
@@ -170,11 +193,15 @@ export function ArticleEditorPage() {
     scheduleAutoSave();
   };
 
-  const handleDragEnd = () => {
+  const handleDragEnd = (e: React.DragEvent) => {
+    (e.target as HTMLElement).style.opacity = '';
+    if (dragOverEl.current) {
+      dragOverEl.current.classList.remove('ring-2', 'ring-amber-400', '-translate-y-0.5');
+      dragOverEl.current = null;
+    }
     dragIndex.current = null;
     dragOverIndex.current = null;
     setDraggingId(null);
-    setDragOverId(null);
   };
 
   const handleSectionChange = (
@@ -618,21 +645,17 @@ export function ArticleEditorPage() {
               sections.map((section, index) => {
                 const typeInfo = getSectionTypeInfo(section.type);
                 const isDragging = draggingId === section.id;
-                const isDragOver = dragOverId === section.id && draggingId !== section.id;
                 return (
                   <div
                     key={section.id}
                     draggable
                     onDragStart={(e) => handleDragStart(e, index, section.id)}
-                    onDragOver={(e) => handleDragOver(e, index, section.id)}
+                    onDragOver={(e) => handleDragOver(e, index)}
+                    onDragLeave={handleDragLeave}
                     onDrop={handleDrop}
                     onDragEnd={handleDragEnd}
                     className={`bg-white rounded-lg border-2 p-6 transition-all select-none ${
-                      isDragging
-                        ? 'opacity-40 border-amber-300 scale-[0.99] shadow-inner'
-                        : isDragOver
-                        ? 'border-amber-400 shadow-md -translate-y-0.5'
-                        : 'border-gray-200'
+                      isDragging ? 'border-amber-300' : 'border-gray-200'
                     }`}
                   >
                     <div className="flex items-start gap-4">
