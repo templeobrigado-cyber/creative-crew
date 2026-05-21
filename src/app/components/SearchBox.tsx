@@ -48,7 +48,7 @@ export function SearchBox({
     <div className={`${maxWidth} flex items-center gap-2`}>
       <div className="relative flex-1">
         {/* Search icon - show for both variants */}
-        <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none z-10">
+        <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none z-20">
           <Search className={`w-5 h-5 transition-colors ${isActive ? 'text-amber-600' : 'text-gray-500'}`} />
         </div>
         <input
