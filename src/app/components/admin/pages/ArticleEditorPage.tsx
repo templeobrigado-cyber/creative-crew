@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router';
 import {
   ArrowLeft,
@@ -68,6 +68,15 @@ export function ArticleEditorPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [allTags, setAllTags] = useState<Tag[]>([]);
   const [isLoading, setIsLoading] = useState(!isNewArticle);
+  const dragIndex = useRef<number | null>(null);
+  const dragOverIndex = useRef<number | null>(null);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+
+  // 自動保存用
+  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isDirtyRef = useRef(false);
+  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'pending' | 'saving' | 'saved'>('idle');
 
   useEffect(() => {
     getCategories().then(setCategories);
@@ -135,12 +144,46 @@ export function ArticleEditorPage() {
     setSections(sections.filter((s) => s.id !== sectionId));
   };
 
+  const handleDragStart = (e: React.DragEvent, index: number, id: string) => {
+    dragIndex.current = index;
+    setDraggingId(id);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number, id: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    dragOverIndex.current = index;
+    setDragOverId(id);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const from = dragIndex.current;
+    const to = dragOverIndex.current;
+    if (from === null || to === null || from === to) return;
+
+    const reordered = [...sections];
+    const [moved] = reordered.splice(from, 1);
+    reordered.splice(to, 0, moved);
+    setSections(reordered.map((s, i) => ({ ...s, order: i + 1 })));
+    scheduleAutoSave();
+  };
+
+  const handleDragEnd = () => {
+    dragIndex.current = null;
+    dragOverIndex.current = null;
+    setDraggingId(null);
+    setDragOverId(null);
+  };
+
   const handleSectionChange = (
     sectionId: string,
     field: keyof LocalSection,
     value: string
   ) => {
     setSections(sections.map((s) => (s.id === sectionId ? { ...s, [field]: value } : s)));
+    scheduleAutoSave();
   };
 
   const handleMediaUrlChange = (sectionId: string, url: string) => {
@@ -253,6 +296,37 @@ export function ArticleEditorPage() {
     }
   };
 
+  // 自動保存：編集後3秒でトリガー（新規記事は保存済みIDがないためスキップ）
+  const scheduleAutoSave = useCallback(() => {
+    if (isNewArticle || !isSupabaseConfigured) return;
+    isDirtyRef.current = true;
+    setAutoSaveStatus('pending');
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(() => {
+      handleSave(false).then(() => {
+        isDirtyRef.current = false;
+        setAutoSaveStatus('saved');
+        setTimeout(() => setAutoSaveStatus('idle'), 2000);
+      });
+    }, 3000);
+  }, [isNewArticle, title, slug, categoryId, selectedTagIds, lead, status, publishedAt, sections]);
+
+  // 30秒ごとのフォールバック自動保存
+  useEffect(() => {
+    if (isNewArticle || !isSupabaseConfigured) return;
+    const interval = setInterval(() => {
+      if (isDirtyRef.current) {
+        if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+        handleSave(false).then(() => {
+          isDirtyRef.current = false;
+          setAutoSaveStatus('saved');
+          setTimeout(() => setAutoSaveStatus('idle'), 2000);
+        });
+      }
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [isNewArticle, title, slug, categoryId, selectedTagIds, lead, status, publishedAt, sections]);
+
   const sectionTypes = [
     { value: 'overview',      label: '概要',            color: 'bg-amber-600',  description: '記事の概要・まとめ' },
     { value: 'analysis',      label: '分析',            color: 'bg-blue-600',   description: '原因分析・背景説明' },
@@ -304,7 +378,20 @@ export function ArticleEditorPage() {
                   保存に失敗しました
                 </span>
               )}
-              {saveStatus === 'idle' && (
+              {saveStatus === 'idle' && autoSaveStatus === 'pending' && (
+                <span className="text-sm text-gray-400">編集中…</span>
+              )}
+              {saveStatus === 'idle' && autoSaveStatus === 'saving' && (
+                <span className="text-sm text-amber-500 flex items-center gap-1">
+                  <Loader2 className="w-3 h-3 animate-spin" />自動保存中…
+                </span>
+              )}
+              {saveStatus === 'idle' && autoSaveStatus === 'saved' && (
+                <span className="text-sm text-green-500 flex items-center gap-1">
+                  <CheckCircle className="w-3 h-3" />自動保存済み
+                </span>
+              )}
+              {saveStatus === 'idle' && autoSaveStatus === 'idle' && (
                 <span className="text-sm text-gray-500">{title || '記事タイトル未設定'}</span>
               )}
             </div>
@@ -374,7 +461,7 @@ export function ArticleEditorPage() {
             <input
               type="text"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => { setTitle(e.target.value); scheduleAutoSave(); }}
               onBlur={handleTitleBlur}
               placeholder="例：ログインできない場合の対処方法"
               className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-amber-400 focus:ring-4 focus:ring-amber-300/30"
@@ -387,7 +474,7 @@ export function ArticleEditorPage() {
             <input
               type="text"
               value={slug}
-              onChange={(e) => setSlug(e.target.value)}
+              onChange={(e) => { setSlug(e.target.value); scheduleAutoSave(); }}
               placeholder="例：cannot-login-solution"
               className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-amber-400 focus:ring-4 focus:ring-amber-300/30 bg-gray-50"
             />
@@ -401,7 +488,7 @@ export function ArticleEditorPage() {
             </label>
             <select
               value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value)}
+              onChange={(e) => { setCategoryId(e.target.value); scheduleAutoSave(); }}
               className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-amber-400 focus:ring-4 focus:ring-amber-300/30 bg-white"
             >
               <option value="">選択してください</option>
@@ -426,12 +513,13 @@ export function ArticleEditorPage() {
                     <button
                       key={tag.id}
                       type="button"
-                      onClick={() =>
+                      onClick={() => {
                         setSelectedTagIds(selected
                           ? selectedTagIds.filter(id => id !== tag.id)
                           : [...selectedTagIds, tag.id]
-                        )
-                      }
+                        );
+                        scheduleAutoSave();
+                      }}
                       className={`inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium transition-all ${
                         selected ? 'ring-2 ring-offset-1 ring-amber-400' : 'opacity-50 hover:opacity-80'
                       }`}
@@ -451,7 +539,7 @@ export function ArticleEditorPage() {
             <label className="block text-sm font-medium text-gray-900 mb-2">リード文</label>
             <textarea
               value={lead}
-              onChange={(e) => setLead(e.target.value)}
+              onChange={(e) => { setLead(e.target.value); scheduleAutoSave(); }}
               rows={3}
               placeholder="記事の概要を簡潔に..."
               className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-amber-400 focus:ring-4 focus:ring-amber-300/30"
@@ -463,7 +551,7 @@ export function ArticleEditorPage() {
             <label className="block text-sm font-medium text-gray-900 mb-2">ステータス</label>
             <select
               value={status}
-              onChange={(e) => setStatus(e.target.value as ArticleStatus)}
+              onChange={(e) => { setStatus(e.target.value as ArticleStatus); scheduleAutoSave(); }}
               className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-amber-400 focus:ring-4 focus:ring-amber-300/30 bg-white"
             >
               <option value="draft">下書き</option>
@@ -529,12 +617,28 @@ export function ArticleEditorPage() {
             ) : (
               sections.map((section, index) => {
                 const typeInfo = getSectionTypeInfo(section.type);
+                const isDragging = draggingId === section.id;
+                const isDragOver = dragOverId === section.id && draggingId !== section.id;
                 return (
-                  <div key={section.id} className="bg-white rounded-lg border-2 border-gray-200 p-6">
+                  <div
+                    key={section.id}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, index, section.id)}
+                    onDragOver={(e) => handleDragOver(e, index, section.id)}
+                    onDrop={handleDrop}
+                    onDragEnd={handleDragEnd}
+                    className={`bg-white rounded-lg border-2 p-6 transition-all select-none ${
+                      isDragging
+                        ? 'opacity-40 border-amber-300 scale-[0.99] shadow-inner'
+                        : isDragOver
+                        ? 'border-amber-400 shadow-md -translate-y-0.5'
+                        : 'border-gray-200'
+                    }`}
+                  >
                     <div className="flex items-start gap-4">
-                      <button className="mt-2 cursor-move">
-                        <GripVertical className="w-5 h-5 text-gray-400" />
-                      </button>
+                      <div className="mt-2 cursor-grab active:cursor-grabbing touch-none">
+                        <GripVertical className="w-5 h-5 text-gray-400 hover:text-gray-600 transition-colors" />
+                      </div>
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-3">
                           <span className={`px-3 py-1 ${typeInfo.color} text-white rounded text-xs font-medium`}>
@@ -547,6 +651,7 @@ export function ArticleEditorPage() {
                           type="text"
                           value={section.title}
                           onChange={(e) => handleSectionChange(section.id, 'title', e.target.value)}
+                          onDragStart={(e) => e.stopPropagation()}
                           placeholder="セクションタイトル"
                           className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-amber-400 focus:ring-4 focus:ring-amber-300/30 font-medium mb-3"
                         />
@@ -555,6 +660,7 @@ export function ArticleEditorPage() {
                           type="text"
                           value={section.subtitle ?? ''}
                           onChange={(e) => handleSectionChange(section.id, 'subtitle', e.target.value)}
+                          onDragStart={(e) => e.stopPropagation()}
                           placeholder="サブタイトル（任意）"
                           className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-amber-400 focus:ring-4 focus:ring-amber-300/30 text-sm mb-3"
                         />
@@ -562,6 +668,7 @@ export function ArticleEditorPage() {
                         <textarea
                           value={section.body_md}
                           onChange={(e) => handleSectionChange(section.id, 'body_md', e.target.value)}
+                          onDragStart={(e) => e.stopPropagation()}
                           placeholder="本文をMarkdown形式で入力..."
                           rows={8}
                           className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-amber-400 focus:ring-4 focus:ring-amber-300/30 font-mono text-sm"
