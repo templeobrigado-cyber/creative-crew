@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { Plus, Search, Edit, Eye, Trash2, X, AlertTriangle } from 'lucide-react'
+import { Plus, Search, Edit, Eye, Trash2, X, AlertTriangle, Download, Upload } from 'lucide-react'
 import { getAllArticles, deleteArticle } from '../../../../lib/services/articles'
+import { exportArticlesCSV, importArticlesCSV } from '../../../../lib/services/csv-import'
 import { useAuth } from '../../../../lib/auth'
 import type { Article } from '../../../../lib/types'
 
@@ -21,6 +22,8 @@ export function ArticleListPage() {
   const [statusFilter, setStatusFilter] = useState('')
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [csvImporting, setCsvImporting] = useState(false)
+  const csvFileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     getAllArticles().then(data => {
@@ -48,18 +51,46 @@ export function ArticleListPage() {
     setDeleteConfirmId(null)
   }
 
+  const handleCsvImport = async (file: File) => {
+    setCsvImporting(true)
+    const result = await importArticlesCSV(file)
+    setCsvImporting(false)
+    if (csvFileRef.current) csvFileRef.current.value = ''
+    alert(`インポート完了: ${result.success}件\n${result.errors.join('\n')}`)
+    getAllArticles().then(data => { setArticles(data); setFiltered(data) })
+  }
+
   return (
     <div className="p-8">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-medium text-gray-900">記事一覧</h1>
-        <button
-          onClick={() => navigate('/admin/articles/new')}
-          className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-gray-900 rounded-lg hover:bg-amber-700 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          新規作成
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={exportArticlesCSV}
+            className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            <Download className="w-4 h-4" />
+            エクスポート
+          </button>
+          <button
+            onClick={() => csvFileRef.current?.click()}
+            disabled={csvImporting}
+            className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+          >
+            <Upload className="w-4 h-4" />
+            {csvImporting ? 'インポート中…' : 'CSVインポート'}
+          </button>
+          <input ref={csvFileRef} type="file" accept=".csv" className="hidden"
+            onChange={e => { const f = e.target.files?.[0]; if (f) handleCsvImport(f) }} />
+          <button
+            onClick={() => navigate('/admin/articles/new')}
+            className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-gray-900 rounded-lg hover:bg-amber-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            新規作成
+          </button>
+        </div>
       </div>
 
       {/* Filters */}

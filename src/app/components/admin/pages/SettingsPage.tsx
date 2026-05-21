@@ -73,15 +73,21 @@ export function SettingsPage() {
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingFavicon, setUploadingFavicon] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
   const faviconInputRef = useRef<HTMLInputElement>(null);
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setUploadError(null);
     setUploadingLogo(true);
-    const url = await uploadSiteAsset(file);
-    if (url) set('site_logo_url', url);
+    const result = await uploadSiteAsset(file);
+    if (result.url) {
+      set('site_logo_url', result.url);
+    } else {
+      setUploadError(`ロゴのアップロードに失敗しました: ${result.error}`);
+    }
     setUploadingLogo(false);
     e.target.value = '';
   };
@@ -89,9 +95,14 @@ export function SettingsPage() {
   const handleFaviconUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setUploadError(null);
     setUploadingFavicon(true);
-    const url = await uploadSiteAsset(file);
-    if (url) set('site_favicon_url', url);
+    const result = await uploadSiteAsset(file);
+    if (result.url) {
+      set('site_favicon_url', result.url);
+    } else {
+      setUploadError(`ファビコンのアップロードに失敗しました: ${result.error}`);
+    }
     setUploadingFavicon(false);
     e.target.value = '';
   };
@@ -200,6 +211,24 @@ export function SettingsPage() {
           {activeTab === 'general' && (
             <div className="space-y-5">
               <h2 className="font-medium text-gray-900 mb-4">サイト基本設定</h2>
+
+              {/* アップロードエラー表示 */}
+              {uploadError && (
+                <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                  <span className="shrink-0">⚠️</span>
+                  <div>
+                    <p className="font-medium">アップロードエラー</p>
+                    <p className="mt-0.5 text-xs">{uploadError}</p>
+                    {uploadError.includes('Bucket not found') && (
+                      <p className="mt-1 text-xs">Supabase ストレージに <code className="bg-red-100 px-1 rounded">site-assets</code> バケットが存在しません。下記の手順で作成してください。</p>
+                    )}
+                    {uploadError.includes('row-level security') || uploadError.includes('policy') ? (
+                      <p className="mt-1 text-xs">バケットのRLSポリシーでアップロードが拒否されました。Supabase の Storage → site-assets → Policies でアップロードを許可してください。</p>
+                    ) : null}
+                    <button onClick={() => setUploadError(null)} className="mt-2 text-xs underline">閉じる</button>
+                  </div>
+                </div>
+              )}
 
               {/* サイトロゴ */}
               <div>

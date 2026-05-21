@@ -1,7 +1,11 @@
 import { supabase, isSupabaseConfigured } from '../supabase'
 
-export async function uploadImage(file: File, bucket = 'article-images'): Promise<string | null> {
-  if (!isSupabaseConfigured || !supabase) return null
+export type UploadResult = { url: string; error: null } | { url: null; error: string }
+
+export async function uploadImage(file: File, bucket = 'article-images'): Promise<UploadResult> {
+  if (!isSupabaseConfigured || !supabase) {
+    return { url: null, error: 'Supabase が未設定です' }
+  }
 
   const ext = file.name.split('.').pop() ?? 'jpg'
   const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
@@ -11,12 +15,15 @@ export async function uploadImage(file: File, bucket = 'article-images'): Promis
     upsert: false,
   })
 
-  if (error) { console.error(error); return null }
+  if (error) {
+    console.error('[uploadImage]', error)
+    return { url: null, error: error.message }
+  }
 
   const { data } = supabase.storage.from(bucket).getPublicUrl(path)
-  return data.publicUrl
+  return { url: data.publicUrl, error: null }
 }
 
-export async function uploadSiteAsset(file: File): Promise<string | null> {
+export async function uploadSiteAsset(file: File): Promise<UploadResult> {
   return uploadImage(file, 'site-assets')
 }

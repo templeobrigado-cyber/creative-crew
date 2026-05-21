@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
 interface Article {
@@ -9,15 +8,15 @@ interface Article {
 interface SubcategoryAccordionProps {
   title: string;
   articles: Article[];
+  isOpen: boolean;
+  onToggle: () => void;
 }
 
-export function SubcategoryAccordion({ title, articles }: SubcategoryAccordionProps) {
-  const [isOpen, setIsOpen] = useState(false);
-
+export function SubcategoryAccordion({ title, articles, isOpen, onToggle }: SubcategoryAccordionProps) {
   return (
     <div className="border-b border-gray-200">
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={onToggle}
         className="w-full h-16 px-6 flex items-center justify-between hover:bg-amber-50/30 transition-all group"
       >
         <span className="text-base font-medium text-gray-900 group-hover:text-amber-700 transition-colors">{title}</span>

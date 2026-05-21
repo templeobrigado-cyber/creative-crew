@@ -5,7 +5,12 @@
       "Bash(git add *)",
       "Bash(git commit -m 'fix: add SPA rewrite rule for client-side routing *)",
       "Bash(git push *)",
-      "Bash(git commit -m 'feat: add logo, favicon, header text settings *)"
+      "Bash(git commit -m 'feat: add logo, favicon, header text settings *)",
+      "Bash(pnpm build *)",
+      "Read(//Users/shigeteraoka/Library/pnpm/**)",
+      "Read(//opt/homebrew/bin/**)",
+      "Read(//Users/shigeteraoka/.local/share/pnpm/**)",
+      "Bash(ls /Users/shigeteraoka/Library/pnpm/ 2>/dev/null; ls ~/.local/share/pnpm 2>/dev/null; find /Users/shigeteraoka -name \"pnpm\" -type f 2>/dev/null | head -5)"
     ]
   }
 }

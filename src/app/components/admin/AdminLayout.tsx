@@ -12,6 +12,7 @@ import { AnalyticsPage } from './pages/AnalyticsPage'
 import { ZeroHitQueriesPage } from './pages/ZeroHitQueriesPage'
 import { FeedbackPage } from './pages/FeedbackPage'
 import { SettingsPage } from './pages/SettingsPage'
+import { CsvPage } from './pages/CsvPage'
 
 // セッションベースの簡易認証チェック
 function useAdminAuth() {
@@ -49,6 +50,7 @@ export function AdminLayout() {
             <Route path="analytics" element={<AnalyticsPage />} />
             <Route path="feedback" element={<FeedbackPage />} />
             <Route path="users" element={<UserManagementPage />} />
+            <Route path="csv" element={<CsvPage />} />
             <Route path="settings" element={<SettingsPage />} />
           </Routes>
         </main>

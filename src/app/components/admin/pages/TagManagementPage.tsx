@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../../../lib/auth';
 import { AccessDenied } from '../AccessDenied';
-import { Plus, Search, Edit, Trash2, X, AlertTriangle, Loader2, Tag as TagIcon } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, X, AlertTriangle, Loader2, Tag as TagIcon, Download, Upload } from 'lucide-react';
 import { getTags, getTagUsageCounts, createTag, updateTag, deleteTag } from '../../../../lib/services/tags';
+import { exportTagsCSV, importTagsCSV } from '../../../../lib/services/csv-import';
 import { ICON_MAP, ICON_OPTIONS } from '../../../../lib/icons';
 import type { Tag } from '../../../../lib/types';
 
@@ -29,6 +30,8 @@ export function TagManagementPage() {
   const [showPanel, setShowPanel] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [csvImporting, setCsvImporting] = useState(false);
+  const csvFileRef = useRef<HTMLInputElement>(null);
 
   // フォーム state
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -110,19 +113,47 @@ export function TagManagementPage() {
     return matchSearch && matchFilter;
   });
 
+  const handleCsvImport = async (file: File) => {
+    setCsvImporting(true);
+    const result = await importTagsCSV(file);
+    setCsvImporting(false);
+    if (csvFileRef.current) csvFileRef.current.value = '';
+    alert(`インポート完了: ${result.success}件\n${result.errors.join('\n')}`);
+    await load();
+  };
+
   if (!can('tag.manage')) return <AccessDenied />;
 
   return (
     <div className="p-8">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-medium text-gray-900">タグ管理</h1>
-        <button
-          onClick={openAdd}
-          className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-gray-900 rounded-lg hover:bg-amber-700 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          タグを追加
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={exportTagsCSV}
+            className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            <Download className="w-4 h-4" />
+            エクスポート
+          </button>
+          <button
+            onClick={() => csvFileRef.current?.click()}
+            disabled={csvImporting}
+            className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+          >
+            <Upload className="w-4 h-4" />
+            {csvImporting ? 'インポート中…' : 'CSVインポート'}
+          </button>
+          <input ref={csvFileRef} type="file" accept=".csv" className="hidden"
+            onChange={e => { const f = e.target.files?.[0]; if (f) handleCsvImport(f); }} />
+          <button
+            onClick={openAdd}
+            className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-gray-900 rounded-lg hover:bg-amber-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            タグを追加
+          </button>
+        </div>
       </div>
 
       <div className="flex gap-6">

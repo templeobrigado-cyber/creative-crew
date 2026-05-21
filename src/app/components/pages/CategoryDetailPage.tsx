@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router'
-import { Settings } from 'lucide-react'
+import { Settings, ChevronsUpDown, ChevronsDownUp } from 'lucide-react'
 import { Header } from '../Header'
 import { Footer } from '../Footer'
 import { CategoryHeader } from '../CategoryHeader'
@@ -21,6 +21,7 @@ export function CategoryDetailPage() {
   const [subcategoryData, setSubcategoryData] = useState<SubcategoryWithArticles[]>([])
   const [directArticles, setDirectArticles] = useState<Article[]>([])
   const [loading, setLoading] = useState(true)
+  const [openStates, setOpenStates] = useState<boolean[]>([])
 
   useEffect(() => {
     if (!slug) return
@@ -42,11 +43,22 @@ export function CategoryDetailPage() {
         }))
       )
 
-      setSubcategoryData(subsWithArticles.filter(s => s.articles.length > 0))
+      const filtered = subsWithArticles.filter(s => s.articles.length > 0)
+      const totalItems = filtered.length + (direct.length > 0 ? 1 : 0)
+
+      setSubcategoryData(filtered)
       setDirectArticles(direct)
+      setOpenStates(Array(totalItems).fill(true)) // 全て初期オープン
       setLoading(false)
     })
   }, [slug, navigate])
+
+  const toggleItem = useCallback((index: number) => {
+    setOpenStates(prev => prev.map((v, i) => i === index ? !v : v))
+  }, [])
+
+  const openAll = useCallback(() => setOpenStates(prev => prev.map(() => true)), [])
+  const closeAll = useCallback(() => setOpenStates(prev => prev.map(() => false)), [])
 
   if (loading) {
     return (
@@ -92,11 +104,37 @@ export function CategoryDetailPage() {
           {accordionItems.length === 0 ? (
             <p className="text-gray-600">この記事はまだありません。</p>
           ) : (
-            <div className="space-y-2">
-              {accordionItems.map((item, i) => (
-                <SubcategoryAccordion key={i} title={item.title} articles={item.articles} />
-              ))}
-            </div>
+            <>
+              {/* 一括開閉ボタン */}
+              <div className="flex justify-end gap-2 mb-4">
+                <button
+                  onClick={openAll}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors"
+                >
+                  <ChevronsDownUp className="w-4 h-4" />
+                  全て開く
+                </button>
+                <button
+                  onClick={closeAll}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors"
+                >
+                  <ChevronsUpDown className="w-4 h-4" />
+                  全て閉じる
+                </button>
+              </div>
+
+              <div className="space-y-2">
+                {accordionItems.map((item, i) => (
+                  <SubcategoryAccordion
+                    key={i}
+                    title={item.title}
+                    articles={item.articles}
+                    isOpen={openStates[i] ?? true}
+                    onToggle={() => toggleItem(i)}
+                  />
+                ))}
+              </div>
+            </>
           )}
         </div>
       </main>

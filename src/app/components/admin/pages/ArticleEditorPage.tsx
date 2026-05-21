@@ -155,13 +155,13 @@ export function ArticleEditorPage() {
 
   const handleImageUpload = async (sectionId: string, file: File) => {
     setUploadingId(sectionId);
-    const url = await uploadImage(file);
-    if (url) {
+    const result = await uploadImage(file);
+    if (result.url) {
       setSections(sections.map(s =>
-        s.id === sectionId ? { ...s, mediaUrl: url, mediaProvider: 'image' } : s
+        s.id === sectionId ? { ...s, mediaUrl: result.url!, mediaProvider: 'image' } : s
       ));
     } else {
-      alert('アップロードに失敗しました');
+      alert(`アップロードに失敗しました: ${result.error}`);
     }
     setUploadingId(null);
   };

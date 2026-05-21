@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from 'react-router'
 import {
   LayoutDashboard, FileText, FolderOpen, Tags,
-  SearchX, BarChart3, MessageSquare, Users, Settings, ArrowLeft
+  SearchX, BarChart3, MessageSquare, Users, Settings, ArrowLeft, FileSpreadsheet
 } from 'lucide-react'
 import { useAuth } from '../../../lib/auth'
 import type { Action } from '../../../lib/auth'
@@ -22,6 +22,7 @@ const menuItems: MenuItem[] = [
   { path: '/admin/analytics',   icon: BarChart3,       label: '分析' },
   { path: '/admin/feedback',    icon: MessageSquare,   label: 'フィードバック' },
   { path: '/admin/users',       icon: Users,           label: 'ユーザー管理',  requiredAction: 'user.manage' },
+  { path: '/admin/csv',         icon: FileSpreadsheet, label: 'CSVアップロード' },
   { path: '/admin/settings',    icon: Settings,        label: '設定',          requiredAction: 'settings.manage' },
 ]
 
