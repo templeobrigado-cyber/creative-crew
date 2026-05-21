@@ -4,6 +4,7 @@ import { AccessDenied } from '../AccessDenied';
 import { getSettings, saveSettings } from '../../../../lib/services/settings';
 import { applyTheme, type ThemeColor } from '../../../../lib/theme';
 import { applyFont, FONT_OPTIONS, type FontKey } from '../../../../lib/font';
+import { applyRadius, RADIUS_OPTIONS, type RadiusKey } from '../../../../lib/radius';
 import {
   Globe, Layout, Search, Mail, BarChart, Palette, Shield, Bell, Save, Loader2, CheckCircle
 } from 'lucide-react';
@@ -431,13 +432,24 @@ export function SettingsPage() {
               </div>
               <div>
                 <label className={labelClass}>角丸の大きさ</label>
-                <select className={inputClass} value={settings.theme_radius}
-                  onChange={e => set('theme_radius', e.target.value)}>
-                  <option value="none">なし</option>
-                  <option value="small">小</option>
-                  <option value="medium">中</option>
-                  <option value="large">大</option>
-                </select>
+                <div className="grid grid-cols-4 gap-3">
+                  {RADIUS_OPTIONS.map(r => (
+                    <button key={r.key} onClick={() => {
+                      set('theme_radius', r.key)
+                      applyRadius(r.key as RadiusKey)
+                    }}
+                      className={`p-4 border-2 transition-all text-center ${settings.theme_radius === r.key ? 'border-amber-600 ring-2 ring-amber-300/40' : 'border-gray-200 hover:border-gray-300'}`}
+                      style={{ borderRadius: r.md }}>
+                      {/* プレビュー：ボタン風の四角 */}
+                      <div
+                        className="w-full h-8 bg-amber-600 mb-2 mx-auto"
+                        style={{ borderRadius: r.lg }}
+                      />
+                      <span className="text-xs text-gray-700 font-medium">{r.label}</span>
+                      <p className="text-[10px] text-gray-400 mt-0.5">{r.md}</p>
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           )}
