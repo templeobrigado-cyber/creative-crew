@@ -7,7 +7,8 @@ import {
   EyeOff,
   Globe,
   Plus,
-  GripVertical,
+  ChevronUp,
+  ChevronDown,
   Trash2,
   Image as ImageIcon,
   Video,
@@ -68,10 +69,6 @@ export function ArticleEditorPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [allTags, setAllTags] = useState<Tag[]>([]);
   const [isLoading, setIsLoading] = useState(!isNewArticle);
-  const dragIndex = useRef<number | null>(null);
-  const dragOverIndex = useRef<number | null>(null);
-  const dragOverEl = useRef<HTMLElement | null>(null);
-  const [draggingId, setDraggingId] = useState<string | null>(null);
 
   // 自動保存用
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -144,64 +141,13 @@ export function ArticleEditorPage() {
     setSections(sections.filter((s) => s.id !== sectionId));
   };
 
-  const handleDragStart = (e: React.DragEvent, index: number, id: string) => {
-    dragIndex.current = index;
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', String(index)); // Firefox対応
-    // ドラッグ画像をカード全体（グリップの親の親）に設定
-    const card = (e.currentTarget as HTMLElement).closest('.border-2') as HTMLElement;
-    if (card) e.dataTransfer.setDragImage(card, 20, 20);
-    // state更新はdataTransfer設定の後（再レンダリングを遅らせる）
-    setTimeout(() => setDraggingId(id), 0);
-  };
-
-  const handleDragOver = (e: React.DragEvent, index: number) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    // 前のhover要素からクラスを除去
-    if (dragOverEl.current) {
-      dragOverEl.current.classList.remove('ring-2', 'ring-amber-400', '-translate-y-0.5');
-    }
-    // 現在の要素にクラスを付与（再レンダリングなし）
-    const el = e.currentTarget as HTMLElement;
-    el.classList.add('ring-2', 'ring-amber-400', '-translate-y-0.5');
-    dragOverEl.current = el;
-    dragOverIndex.current = index;
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    // 子要素へ移動した場合は無視
-    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
-    const el = e.currentTarget as HTMLElement;
-    el.classList.remove('ring-2', 'ring-amber-400', '-translate-y-0.5');
-    if (dragOverEl.current === el) dragOverEl.current = null;
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    const from = dragIndex.current;
-    const to = dragOverIndex.current;
-    // hover強調を除去
-    if (dragOverEl.current) {
-      dragOverEl.current.classList.remove('ring-2', 'ring-amber-400', '-translate-y-0.5');
-      dragOverEl.current = null;
-    }
-    if (from === null || to === null || from === to) return;
+  const moveSection = (index: number, direction: 'up' | 'down') => {
+    const next = direction === 'up' ? index - 1 : index + 1;
+    if (next < 0 || next >= sections.length) return;
     const reordered = [...sections];
-    const [moved] = reordered.splice(from, 1);
-    reordered.splice(to, 0, moved);
+    [reordered[index], reordered[next]] = [reordered[next], reordered[index]];
     setSections(reordered.map((s, i) => ({ ...s, order: i + 1 })));
     scheduleAutoSave();
-  };
-
-  const handleDragEnd = () => {
-    if (dragOverEl.current) {
-      dragOverEl.current.classList.remove('ring-2', 'ring-amber-400', '-translate-y-0.5');
-      dragOverEl.current = null;
-    }
-    dragIndex.current = null;
-    dragOverIndex.current = null;
-    setDraggingId(null);
   };
 
   const handleSectionChange = (
@@ -644,28 +590,32 @@ export function ArticleEditorPage() {
             ) : (
               sections.map((section, index) => {
                 const typeInfo = getSectionTypeInfo(section.type);
-                const isDragging = draggingId === section.id;
                 return (
-                  // カード全体はドロップターゲット（draggable不要）
                   <div
                     key={section.id}
-                    onDragOver={(e) => handleDragOver(e, index)}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
-                    className={`bg-white rounded-lg border-2 p-6 transition-all ${
-                      isDragging ? 'opacity-50 border-amber-300' : 'border-gray-200'
-                    }`}
+                    className="bg-white rounded-lg border-2 border-gray-200 p-6"
                   >
                     <div className="flex items-start gap-4">
-                      {/* グリップのみdraggable — ここだけがドラッグ起点 */}
-                      <div
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, index, section.id)}
-                        onDragEnd={handleDragEnd}
-                        className="mt-2 cursor-grab active:cursor-grabbing select-none shrink-0"
-                        title="ドラッグして並び替え"
-                      >
-                        <GripVertical className="w-5 h-5 text-gray-300 hover:text-gray-500 transition-colors" />
+                      {/* 上下ボタンで並び替え */}
+                      <div className="flex flex-col gap-0.5 mt-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => moveSection(index, 'up')}
+                          disabled={index === 0}
+                          className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+                          title="上に移動"
+                        >
+                          <ChevronUp className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveSection(index, 'down')}
+                          disabled={index === sections.length - 1}
+                          className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+                          title="下に移動"
+                        >
+                          <ChevronDown className="w-4 h-4" />
+                        </button>
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-3">
