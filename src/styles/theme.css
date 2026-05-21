@@ -9,6 +9,7 @@
   --amber-200: #FFF09A;
   --amber-400: #FFE24D;
   --amber-600: #FFD008;
+  --amber-700: #DDB800;
   --amber-800: #C9A400;
   --amber-900: #9E8200;
 
@@ -83,6 +84,7 @@
   --amber-200: #BBDAEB;
   --amber-400: #C5DDE8;
   --amber-600: #9FC7D8;
+  --amber-700: #87B8CC;
   --amber-800: #6FA8C0;
   --amber-900: #4A8FAD;
   --background: #F0F6FA;
@@ -95,6 +97,7 @@
   --amber-200: #B8E8D8;
   --amber-400: #C8EEE3;
   --amber-600: #A6E1CA;
+  --amber-700: #8DD3B9;
   --amber-800: #6DC4A8;
   --amber-900: #4AAD8A;
   --background: #F0FAF5;
@@ -144,6 +147,7 @@
   --color-amber-200: var(--amber-200);
   --color-amber-400: var(--amber-400);
   --color-amber-600: var(--amber-600);
+  --color-amber-700: var(--amber-700);
   --color-amber-800: var(--amber-800);
   --color-amber-900: var(--amber-900);
 
