@@ -24,6 +24,7 @@ import { getTags } from '../../../../lib/services/tags';
 import { uploadImage } from '../../../../lib/services/storage';
 import { getSettings } from '../../../../lib/services/settings';
 import { proofreadText } from '../../../../lib/services/ai';
+import { sendNotification } from '../../../../lib/services/notification';
 import { isSupabaseConfigured } from '../../../../lib/supabase';
 import type { Category, Tag, CreateSectionInput, ArticleStatus } from '../../../../lib/types';
 import { SectionCard } from '../../SectionCard';
@@ -296,7 +297,10 @@ export function ArticleEditorPage() {
       await upsertSections(savedId!, sectionInputs);
       await syncArticleTags(savedId!, selectedTagIds);
 
-      if (publish) setStatus('published');
+      if (publish) {
+        setStatus('published');
+        sendNotification('article_published', { title, url: finalSlug });
+      }
       setSaveStatus('saved');
 
       if (isNewArticle) {

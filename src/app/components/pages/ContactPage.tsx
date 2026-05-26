@@ -3,9 +3,14 @@ import { Mail, Send, CheckCircle } from 'lucide-react';
 import { Header } from '../Header';
 import { Footer } from '../Footer';
 import { Breadcrumbs } from '../Breadcrumbs';
+import { sendNotification } from '../../../lib/services/notification';
 
 export function ContactPage() {
   const [submitted, setSubmitted] = useState(false);
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [subject, setSubject] = useState('');
+  const [message, setMessage] = useState('');
 
   const breadcrumbs = [
     { label: 'ホーム', href: '/' },
@@ -21,6 +26,7 @@ export function ContactPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    sendNotification('new_contact', { name, email, subject, message });
     setSubmitted(true);
   };
 
@@ -128,6 +134,8 @@ export function ContactPage() {
                 type="text"
                 id="name"
                 required
+                value={name}
+                onChange={e => setName(e.target.value)}
                 className="w-full px-4 py-3 border-2 border-gray-200 rounded focus:outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-300/30 transition-all"
                 placeholder="山田 太郎"
               />
@@ -142,6 +150,8 @@ export function ContactPage() {
                 type="email"
                 id="email"
                 required
+                value={email}
+                onChange={e => setEmail(e.target.value)}
                 className="w-full px-4 py-3 border-2 border-gray-200 rounded focus:outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-300/30 transition-all"
                 placeholder="example@email.com"
               />
@@ -181,6 +191,8 @@ export function ContactPage() {
                 type="text"
                 id="subject"
                 required
+                value={subject}
+                onChange={e => setSubject(e.target.value)}
                 className="w-full px-4 py-3 border-2 border-gray-200 rounded focus:outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-300/30 transition-all"
                 placeholder="お問い合わせの件名を入力してください"
               />
@@ -195,6 +207,8 @@ export function ContactPage() {
                 id="message"
                 required
                 rows={8}
+                value={message}
+                onChange={e => setMessage(e.target.value)}
                 className="w-full px-4 py-3 border-2 border-gray-200 rounded focus:outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-300/30 transition-all resize-none"
                 placeholder="できるだけ詳しくお書きください"
               />

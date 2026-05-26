@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { ThumbsUp, ThumbsDown } from 'lucide-react'
+import { sendNotification } from '../../lib/services/notification'
 
 interface FeedbackWidgetProps {
+  articleTitle?: string
   onSubmit?: (isHelpful: boolean, comment?: string) => Promise<boolean> | void
 }
 
-export function FeedbackWidget({ onSubmit }: FeedbackWidgetProps) {
+export function FeedbackWidget({ articleTitle = '', onSubmit }: FeedbackWidgetProps) {
   const [feedback, setFeedback] = useState<'helpful' | 'not-helpful' | null>(null)
   const [comment, setComment] = useState('')
   const [submitted, setSubmitted] = useState(false)
@@ -20,6 +22,7 @@ export function FeedbackWidget({ onSubmit }: FeedbackWidgetProps) {
 
   const handleSubmit = async () => {
     await onSubmit?.(false, comment || undefined)
+    sendNotification('new_feedback', { article_title: articleTitle, comment })
     setSubmitted(true)
   }
 
