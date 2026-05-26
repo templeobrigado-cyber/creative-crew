@@ -8,10 +8,11 @@ import { uploadSiteAsset } from '../../../../lib/services/storage';
 import { Upload, X as XIcon } from 'lucide-react';
 import { applyRadius, RADIUS_OPTIONS, type RadiusKey } from '../../../../lib/radius';
 import {
-  Globe, Layout, Search, Mail, BarChart, Palette, Shield, Bell, Save, Loader2, CheckCircle
+  Globe, Layout, Search, Mail, BarChart, Palette, Shield, Bell, Save, Loader2, CheckCircle,
+  Sparkles, Eye, EyeOff,
 } from 'lucide-react';
 
-type SettingTab = 'general' | 'display' | 'search' | 'contact' | 'seo' | 'analytics' | 'theme' | 'security' | 'notifications';
+type SettingTab = 'general' | 'display' | 'search' | 'contact' | 'seo' | 'analytics' | 'theme' | 'security' | 'notifications' | 'ai';
 
 const DEFAULTS: Record<string, string> = {
   site_name: 'FAQ-CMS ヘルプセンター',
@@ -61,11 +62,14 @@ const DEFAULTS: Record<string, string> = {
   notify_weekly: 'false',
   notify_monthly: 'false',
   notify_email: '',
+  ai_proofread_enabled: 'false',
+  ai_api_key: '',
 }
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'error'
 
 export function SettingsPage() {
+  const [showApiKey, setShowApiKey] = useState(false);
   const { can } = useAuth();
   const [activeTab, setActiveTab] = useState<SettingTab>('general');
   const [settings, setSettings] = useState<Record<string, string>>(DEFAULTS);
@@ -153,6 +157,7 @@ export function SettingsPage() {
     { id: 'theme' as const,         label: 'テーマ設定',     icon: Palette },
     { id: 'security' as const,      label: 'セキュリティ',   icon: Shield },
     { id: 'notifications' as const, label: '通知設定',       icon: Bell },
+    { id: 'ai' as const,            label: 'AI設定',         icon: Sparkles },
   ];
 
   if (!can('settings.manage')) return <AccessDenied />;
@@ -655,6 +660,89 @@ export function SettingsPage() {
                     <span className="text-sm text-gray-700">{item.label}</span>
                   </label>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* AI設定 */}
+          {activeTab === 'ai' && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="font-medium text-gray-900 mb-1">AI設定</h2>
+                <p className="text-sm text-gray-500">Anthropic Claude を使ったAI校正機能の設定を行います。</p>
+              </div>
+
+              {/* AI校正機能 ON/OFF */}
+              <div className="p-4 border border-gray-200 rounded-lg">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-medium text-gray-900 mb-0.5">AI校正機能</p>
+                    <p className="text-xs text-gray-500">記事エディタでSEO・AIOを考慮したAI校正ボタンを表示します。<br />記事タイトル・リード文・セクション本文に個別で適用できます。</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => toggle('ai_proofread_enabled')}
+                    className={`relative shrink-0 inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                      settings.ai_proofread_enabled === 'true' ? 'bg-amber-600' : 'bg-gray-300'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow ${
+                        settings.ai_proofread_enabled === 'true' ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+              </div>
+
+              {/* Anthropic API キー */}
+              <div>
+                <label className={labelClass}>
+                  Anthropic API キー
+                  <span className="ml-2 text-xs font-normal text-gray-400">（AI校正機能を使用する場合に必要）</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type={showApiKey ? 'text' : 'password'}
+                    className={`${inputClass} pr-10 font-mono`}
+                    value={settings.ai_api_key}
+                    onChange={e => set('ai_api_key', e.target.value)}
+                    placeholder="sk-ant-..."
+                    autoComplete="off"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowApiKey(v => !v)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                <p className={hintClass}>
+                  <a
+                    href="https://console.anthropic.com/settings/keys"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-amber-600 hover:underline"
+                  >
+                    Anthropic Console
+                  </a>{' '}
+                  でAPIキーを取得してください。このキーは Supabase Edge Function 経由でのみ使用されます。
+                </p>
+              </div>
+
+              {/* 使い方ガイド */}
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg space-y-3">
+                <p className="text-sm font-medium text-amber-800 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4" />
+                  セットアップ手順
+                </p>
+                <ol className="text-xs text-amber-700 space-y-2 list-decimal list-inside">
+                  <li>Supabase CLI で Edge Function をデプロイ：<code className="bg-amber-100 px-1 py-0.5 rounded font-mono">supabase functions deploy ai-proofread</code></li>
+                  <li>APIキーを上記フォームに入力して「変更を保存」をクリック</li>
+                  <li>AI校正機能のトグルをONにして保存</li>
+                  <li>記事エディタを開くと各フィールドに <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-amber-600 text-white rounded text-[10px]"><Sparkles className="w-2.5 h-2.5" />AI校正</span> ボタンが表示されます</li>
+                </ol>
               </div>
             </div>
           )}

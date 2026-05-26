@@ -16,11 +16,14 @@ import {
   CheckCircle,
   AlertCircle,
   Loader2,
+  Sparkles,
 } from 'lucide-react';
 import { getArticleById, createArticle, updateArticle, upsertSections, syncArticleTags } from '../../../../lib/services/articles';
 import { getCategories } from '../../../../lib/services/categories';
 import { getTags } from '../../../../lib/services/tags';
 import { uploadImage } from '../../../../lib/services/storage';
+import { getSettings } from '../../../../lib/services/settings';
+import { proofreadText } from '../../../../lib/services/ai';
 import { isSupabaseConfigured } from '../../../../lib/supabase';
 import type { Category, Tag, CreateSectionInput, ArticleStatus } from '../../../../lib/types';
 import { SectionCard } from '../../SectionCard';
@@ -75,9 +78,18 @@ export function ArticleEditorPage() {
   const isDirtyRef = useRef(false);
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'pending' | 'saving' | 'saved'>('idle');
 
+  // AI校正
+  const [aiEnabled, setAiEnabled] = useState(false);
+  const [aiApiKey, setAiApiKey] = useState('');
+  const [probreadingId, setProofreadingId] = useState<string | null>(null); // 'title' | 'lead' | sectionId
+
   useEffect(() => {
     getCategories().then(setCategories);
     getTags().then(setAllTags);
+    getSettings().then(s => {
+      setAiEnabled(s.ai_proofread_enabled === 'true');
+      setAiApiKey(s.ai_api_key ?? '');
+    });
     if (isNewArticle) {
       const titleParam = searchParams.get('title')
       if (titleParam) setTitle(titleParam)
@@ -147,6 +159,38 @@ export function ArticleEditorPage() {
     const reordered = [...sections];
     [reordered[index], reordered[next]] = [reordered[next], reordered[index]];
     setSections(reordered.map((s, i) => ({ ...s, order: i + 1 })));
+    scheduleAutoSave();
+  };
+
+  // AI校正ハンドラ
+  const handleProofread = async (
+    targetId: string,
+    currentText: string,
+    fieldType: 'title' | 'lead' | 'body',
+    sectionType?: string
+  ) => {
+    if (!currentText.trim()) return;
+    setProofreadingId(targetId);
+    const result = await proofreadText(currentText, {
+      apiKey: aiApiKey,
+      title,
+      fieldType,
+      type: sectionType,
+    });
+    setProofreadingId(null);
+    if (result.error) {
+      alert(`AI校正エラー:\n${result.error}`);
+      return;
+    }
+    if (fieldType === 'title') {
+      setTitle(result.text);
+    } else if (fieldType === 'lead') {
+      setLead(result.text);
+    } else {
+      setSections(prev => prev.map(s =>
+        s.id === targetId ? { ...s, body_md: result.text } : s
+      ));
+    }
     scheduleAutoSave();
   };
 
@@ -428,9 +472,23 @@ export function ArticleEditorPage() {
 
           {/* Title */}
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-2">
-              タイトル <span className="text-red-500">必須</span>
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-gray-900">
+                タイトル <span className="text-red-500">必須</span>
+              </label>
+              {aiEnabled && (
+                <button
+                  type="button"
+                  onClick={() => handleProofread('title', title, 'title')}
+                  disabled={probreadingId === 'title' || !title.trim()}
+                  className="flex items-center gap-1 px-2 py-1 text-xs bg-amber-600 text-white rounded hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {probreadingId === 'title'
+                    ? <><Loader2 className="w-3 h-3 animate-spin" />校正中…</>
+                    : <><Sparkles className="w-3 h-3" />AI校正</>}
+                </button>
+              )}
+            </div>
             <input
               type="text"
               value={title}
@@ -509,7 +567,21 @@ export function ArticleEditorPage() {
 
           {/* Lead */}
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-2">リード文</label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-gray-900">リード文</label>
+              {aiEnabled && (
+                <button
+                  type="button"
+                  onClick={() => handleProofread('lead', lead, 'lead')}
+                  disabled={probreadingId === 'lead' || !lead.trim()}
+                  className="flex items-center gap-1 px-2 py-1 text-xs bg-amber-600 text-white rounded hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {probreadingId === 'lead'
+                    ? <><Loader2 className="w-3 h-3 animate-spin" />校正中…</>
+                    : <><Sparkles className="w-3 h-3" />AI校正</>}
+                </button>
+              )}
+            </div>
             <textarea
               value={lead}
               onChange={(e) => { setLead(e.target.value); scheduleAutoSave(); }}
@@ -648,6 +720,20 @@ export function ArticleEditorPage() {
                           rows={8}
                           className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-amber-400 focus:ring-4 focus:ring-amber-300/30 font-mono text-sm"
                         />
+                        {aiEnabled && (
+                          <div className="flex justify-end mt-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleProofread(section.id, section.body_md, 'body', section.type)}
+                              disabled={probreadingId === section.id || !section.body_md.trim()}
+                              className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-amber-600 text-white rounded hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                              {probreadingId === section.id
+                                ? <><Loader2 className="w-3 h-3 animate-spin" />AI校正中…</>
+                                : <><Sparkles className="w-3 h-3" />AI校正</>}
+                            </button>
+                          </div>
+                        )}
 
                         {section.type === 'media' && (
                           <div className="mt-4 space-y-3">

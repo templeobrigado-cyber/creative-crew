@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, GripVertical, Edit, Trash2, ChevronDown, ChevronRight, X, AlertTriangle, Loader2, Download, Upload } from 'lucide-react';
+import { Plus, Edit, Trash2, ChevronUp, ChevronDown, ChevronRight, X, AlertTriangle, Loader2, Download, Upload } from 'lucide-react';
 import { getCategories, createCategory, updateCategory, deleteCategory } from '../../../../lib/services/categories';
 import { exportCategoriesCSV, importCategoriesCSV } from '../../../../lib/services/csv-import';
 import { ICON_MAP, ICON_OPTIONS } from '../../../../lib/icons';
@@ -117,6 +117,25 @@ export function CategoryManagementPage() {
     setDeleteConfirmId(null);
   };
 
+  const moveCategory = async (cat: Category, direction: 'up' | 'down') => {
+    const siblings = allCategories
+      .filter(c => c.parent_id === cat.parent_id)
+      .sort((a, b) => a.order - b.order);
+
+    const idx = siblings.findIndex(c => c.id === cat.id);
+    const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= siblings.length) return;
+
+    const sibling = siblings[targetIdx];
+
+    await Promise.all([
+      updateCategory(cat.id, { name: cat.name, slug: cat.slug, icon: cat.icon, parent_id: cat.parent_id ?? null, order: sibling.order }),
+      updateCategory(sibling.id, { name: sibling.name, slug: sibling.slug, icon: sibling.icon, parent_id: sibling.parent_id ?? null, order: cat.order }),
+    ]);
+
+    await load();
+  };
+
   const toggleExpand = (id: string) => {
     const toggle = (nodes: TreeCategory[]): TreeCategory[] =>
       nodes.map(n => n.id === id
@@ -126,55 +145,79 @@ export function CategoryManagementPage() {
     setTree(toggle(tree));
   };
 
-  const renderNode = (node: TreeCategory, level: number = 0) => (
-    <div key={node.id}>
-      <div
-        className="group flex items-center gap-3 py-3 pr-4 hover:bg-gray-50 border-b border-gray-100 transition-colors"
-        style={{ paddingLeft: `${20 + level * 32}px` }}
-      >
-        <GripVertical className="w-4 h-4 text-gray-300 cursor-move shrink-0" />
+  const renderNode = (node: TreeCategory, level: number = 0, siblings: TreeCategory[] = []) => {
+    const idx = siblings.findIndex(s => s.id === node.id);
+    const isFirst = idx <= 0;
+    const isLast = idx < 0 || idx >= siblings.length - 1;
 
-        <button
-          onClick={() => node.children.length > 0 && toggleExpand(node.id)}
-          className="w-5 h-5 flex items-center justify-center shrink-0"
+    return (
+      <div key={node.id}>
+        <div
+          className="group flex items-center gap-3 py-3 pr-4 hover:bg-gray-50 border-b border-gray-100 transition-colors"
+          style={{ paddingLeft: `${20 + level * 32}px` }}
         >
-          {node.children.length > 0 ? (
-            node.isExpanded
-              ? <ChevronDown className="w-4 h-4 text-gray-500" />
-              : <ChevronRight className="w-4 h-4 text-gray-500" />
-          ) : (
-            <span className="w-4" />
-          )}
-        </button>
+          {/* 上下移動ボタン */}
+          <div className="flex flex-col shrink-0">
+            <button
+              onClick={() => moveCategory(node, 'up')}
+              disabled={isFirst}
+              title="上へ移動"
+              className="w-4 h-4 flex items-center justify-center text-gray-300 hover:text-gray-600 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronUp className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => moveCategory(node, 'down')}
+              disabled={isLast}
+              title="下へ移動"
+              className="w-4 h-4 flex items-center justify-center text-gray-300 hover:text-gray-600 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronDown className="w-3.5 h-3.5" />
+            </button>
+          </div>
 
-        <span className="flex-1 text-sm font-medium text-gray-900">{node.name}</span>
-        <span className="text-xs text-gray-400 font-mono">{node.slug}</span>
-        {(() => { const Icon = ICON_MAP[node.icon]; return Icon ? <Icon className="w-4 h-4 text-gray-400 shrink-0" /> : null; })()}
+          <button
+            onClick={() => node.children.length > 0 && toggleExpand(node.id)}
+            className="w-5 h-5 flex items-center justify-center shrink-0"
+          >
+            {node.children.length > 0 ? (
+              node.isExpanded
+                ? <ChevronDown className="w-4 h-4 text-gray-500" />
+                : <ChevronRight className="w-4 h-4 text-gray-500" />
+            ) : (
+              <span className="w-4" />
+            )}
+          </button>
 
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button
-            onClick={() => openEdit(node)}
-            className="w-7 h-7 flex items-center justify-center rounded hover:bg-amber-50 text-gray-400 hover:text-amber-600 transition-colors"
-          >
-            <Edit className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={() => setDeleteConfirmId(node.id)}
-            className="w-7 h-7 flex items-center justify-center rounded hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={() => openAdd(node.id)}
-            className="px-2 py-1 text-xs text-amber-600 hover:bg-amber-50 rounded transition-colors"
-          >
-            + 子カテゴリ
-          </button>
+          <span className="flex-1 text-sm font-medium text-gray-900">{node.name}</span>
+          <span className="text-xs text-gray-400 font-mono">{node.slug}</span>
+          {(() => { const Icon = ICON_MAP[node.icon]; return Icon ? <Icon className="w-4 h-4 text-gray-400 shrink-0" /> : null; })()}
+
+          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              onClick={() => openEdit(node)}
+              className="w-7 h-7 flex items-center justify-center rounded hover:bg-amber-50 text-gray-400 hover:text-amber-600 transition-colors"
+            >
+              <Edit className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => setDeleteConfirmId(node.id)}
+              className="w-7 h-7 flex items-center justify-center rounded hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => openAdd(node.id)}
+              className="px-2 py-1 text-xs text-amber-600 hover:bg-amber-50 rounded transition-colors"
+            >
+              + 子カテゴリ
+            </button>
+          </div>
         </div>
+        {node.isExpanded && node.children.map(child => renderNode(child, level + 1, node.children))}
       </div>
-      {node.isExpanded && node.children.map(child => renderNode(child, level + 1))}
-    </div>
-  );
+    );
+  };
 
   const handleCsvImport = async (file: File) => {
     setCsvImporting(true);
@@ -231,7 +274,7 @@ export function CategoryManagementPage() {
               <div className="p-12 text-center text-gray-400 text-sm">カテゴリがありません</div>
             ) : (
               <>
-                {tree.map(node => renderNode(node))}
+                {tree.map((node, _, arr) => renderNode(node, 0, arr))}
                 <div className="px-4 py-3 bg-gray-50 text-xs text-gray-500">
                   全 {flattenTree(tree).length} カテゴリ
                 </div>
