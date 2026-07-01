@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { Check, ChevronRight } from 'lucide-react'
 import { createUser, upsertCreatorProfile } from '../../../lib/services/users'
+import { supabase, isSupabaseConfigured } from '../../../lib/supabase'
 
 const OCCUPATION_OPTIONS = [
   'イラストレーター', 'グラフィックデザイナー', 'WEBデザイナー', 'UI/UXデザイナー',
@@ -61,18 +62,31 @@ export function CreatorRegisterPage() {
     if (err) return alert(err)
 
     setSubmitting(true)
-    const user = await createUser({
-      role: 'creator',
-      name: name.trim(),
-      email: email.trim(),
-      avatar_url: null,
-      line_user_id: null,
-      is_active: true,
-    })
-    setSubmitting(false)
 
-    if (!user) return alert('登録に失敗しました。このメールアドレスはすでに使用されている可能性があります。')
-    setCreatedUserId(user.id)
+    let newUserId: string | null = null
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase.from('users').insert({
+        role: 'creator',
+        name: name.trim(),
+        email: email.trim(),
+        avatar_url: null,
+        line_user_id: null,
+        is_active: true,
+      }).select('id').single()
+
+      if (error) {
+        setSubmitting(false)
+        if (error.code === '23505') {
+          return alert('このメールアドレスはすでに登録されています。ログインページからログインしてください。')
+        }
+        return alert(`登録に失敗しました。(${error.message})`)
+      }
+      newUserId = data?.id ?? null
+    }
+
+    setSubmitting(false)
+    if (!newUserId) return alert('登録に失敗しました。しばらく時間をおいて再度お試しください。')
+    setCreatedUserId(newUserId)
     setStep(2)
   }
 

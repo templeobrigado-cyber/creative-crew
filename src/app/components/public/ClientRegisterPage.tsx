@@ -45,23 +45,36 @@ export function ClientRegisterPage() {
 
     setSubmitting(true)
 
-    const user = await createUser({
-      role: 'client',
-      name: name.trim(),
-      email: email.trim(),
-      avatar_url: null,
-      line_user_id: null,
-      is_active: true,
-    })
+    // createUser の代わりに直接 Supabase を呼び出してエラー詳細を取得
+    let userId: string | null = null
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase.from('users').insert({
+        role: 'client',
+        name: name.trim(),
+        email: email.trim(),
+        avatar_url: null,
+        line_user_id: null,
+        is_active: true,
+      }).select('id').single()
 
-    if (!user) {
+      if (error) {
+        setSubmitting(false)
+        if (error.code === '23505') {
+          return alert('このメールアドレスはすでに登録されています。ログインページからログインしてください。')
+        }
+        return alert(`登録に失敗しました。(${error.message})`)
+      }
+      userId = data?.id ?? null
+    }
+
+    if (!userId) {
       setSubmitting(false)
-      return alert('登録に失敗しました。このメールアドレスはすでに使用されている可能性があります。')
+      return alert('登録に失敗しました。しばらく時間をおいて再度お試しください。')
     }
 
     if (isSupabaseConfigured && supabase) {
       await supabase.from('client_profiles').insert({
-        user_id: user.id,
+        user_id: userId,
         company_name: companyName.trim(),
         industry: industry || null,
         company_url: companyUrl || null,
