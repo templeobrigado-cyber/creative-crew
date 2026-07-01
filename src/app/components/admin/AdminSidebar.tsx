@@ -1,21 +1,24 @@
+import { useEffect, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router'
 import {
   LayoutDashboard, Briefcase, Users, UserCheck,
   Building2, ClipboardList, Settings, LogOut, Tag
 } from 'lucide-react'
+import { getUsers } from '../../../lib/services/users'
 
 type MenuItem = {
   path: string
   icon: React.ElementType
   label: string
+  badgeKey?: 'creator' | 'client'
 }
 
 const menuItems: MenuItem[] = [
   { path: '/admin/dashboard',    icon: LayoutDashboard, label: 'ダッシュボード' },
   { path: '/admin/projects',     icon: Briefcase,       label: '案件管理' },
   { path: '/admin/applications', icon: ClipboardList,   label: '応募管理' },
-  { path: '/admin/creators',     icon: UserCheck,       label: 'クリエイター' },
-  { path: '/admin/clients',      icon: Building2,       label: '発注者' },
+  { path: '/admin/creators',     icon: UserCheck,       label: 'クリエイター', badgeKey: 'creator' },
+  { path: '/admin/clients',      icon: Building2,       label: '発注者',       badgeKey: 'client' },
   { path: '/admin/categories',   icon: Tag,             label: 'カテゴリ管理' },
   { path: '/admin/users',        icon: Users,           label: 'ユーザー管理' },
   { path: '/admin/settings',     icon: Settings,        label: '設定' },
@@ -23,6 +26,19 @@ const menuItems: MenuItem[] = [
 
 export function AdminSidebar() {
   const navigate = useNavigate()
+  const [pendingCounts, setPendingCounts] = useState<Record<string, number>>({ creator: 0, client: 0 })
+
+  useEffect(() => {
+    Promise.all([
+      getUsers('creator'),
+      getUsers('client'),
+    ]).then(([creators, clients]) => {
+      setPendingCounts({
+        creator: creators.filter(u => !u.is_active).length,
+        client:  clients.filter(u => !u.is_active).length,
+      })
+    })
+  }, [])
 
   function handleLogout() {
     sessionStorage.removeItem('admin_logged_in')
@@ -37,22 +53,30 @@ export function AdminSidebar() {
       </div>
 
       <nav className="flex-1 py-4 overflow-y-auto">
-        {menuItems.map(({ path, icon: Icon, label }) => (
-          <NavLink
-            key={path}
-            to={path}
-            className={({ isActive }) =>
-              `w-full px-6 py-3 flex items-center gap-3 transition-all border-l-4 ${
-                isActive
-                  ? 'bg-gray-800 border-indigo-400 text-white'
-                  : 'text-gray-300 hover:bg-gray-800 hover:text-white border-transparent'
-              }`
-            }
-          >
-            <Icon className="w-5 h-5" />
-            <span className="text-sm font-medium">{label}</span>
-          </NavLink>
-        ))}
+        {menuItems.map(({ path, icon: Icon, label, badgeKey }) => {
+          const badge = badgeKey ? pendingCounts[badgeKey] : 0
+          return (
+            <NavLink
+              key={path}
+              to={path}
+              className={({ isActive }) =>
+                `w-full px-6 py-3 flex items-center gap-3 transition-all border-l-4 ${
+                  isActive
+                    ? 'bg-gray-800 border-indigo-400 text-white'
+                    : 'text-gray-300 hover:bg-gray-800 hover:text-white border-transparent'
+                }`
+              }
+            >
+              <Icon className="w-5 h-5 shrink-0" />
+              <span className="text-sm font-medium flex-1">{label}</span>
+              {badge > 0 && (
+                <span className="bg-amber-400 text-gray-900 text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[1.25rem] text-center">
+                  {badge}
+                </span>
+              )}
+            </NavLink>
+          )
+        })}
       </nav>
 
       <div className="p-4 border-t border-gray-800">

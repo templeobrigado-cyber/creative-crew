@@ -18,7 +18,7 @@ export function UserLoginPage() {
     setLoading(false)
 
     if (!user) return setError('このメールアドレスは登録されていません')
-    if (!user.is_active) return setError('このアカウントは無効です')
+    if (!user.is_active) return setError('アカウントは現在審査中です。担当者より承認後にご利用いただけます。')
 
     if (user.role === 'admin') {
       return setError('管理者は管理者ログインページをご利用ください')

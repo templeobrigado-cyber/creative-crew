@@ -71,7 +71,7 @@ export function CreatorRegisterPage() {
         email: email.trim(),
         avatar_url: null,
         line_user_id: null,
-        is_active: true,
+        is_active: false,
       }).select('id').single()
 
       if (error) {
