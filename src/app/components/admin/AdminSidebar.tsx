@@ -1,76 +1,73 @@
 import { NavLink, useNavigate } from 'react-router'
 import {
-  LayoutDashboard, FileText, FolderOpen, Tags,
-  SearchX, BarChart3, MessageSquare, Users, Settings, ArrowLeft, FileSpreadsheet
+  LayoutDashboard, Briefcase, Users, UserCheck,
+  Building2, ClipboardList, Settings, LogOut, Tag
 } from 'lucide-react'
-import { useAuth } from '../../../lib/auth'
-import type { Action } from '../../../lib/auth'
 
 type MenuItem = {
   path: string
   icon: React.ElementType
   label: string
-  requiredAction?: Action
 }
 
 const menuItems: MenuItem[] = [
-  { path: '/admin/dashboard',   icon: LayoutDashboard, label: 'ダッシュボード' },
-  { path: '/admin/articles',    icon: FileText,        label: '記事一覧' },
-  { path: '/admin/categories',  icon: FolderOpen,      label: 'カテゴリ管理',  requiredAction: 'category.manage' },
-  { path: '/admin/tags',        icon: Tags,            label: 'タグ管理',      requiredAction: 'tag.manage' },
-  { path: '/admin/zero-hits',   icon: SearchX,         label: '未解決の検索' },
-  { path: '/admin/analytics',   icon: BarChart3,       label: '分析' },
-  { path: '/admin/feedback',    icon: MessageSquare,   label: 'フィードバック' },
-  { path: '/admin/users',       icon: Users,           label: 'ユーザー管理',  requiredAction: 'user.manage' },
-  { path: '/admin/csv',         icon: FileSpreadsheet, label: 'CSVアップロード' },
-  { path: '/admin/settings',    icon: Settings,        label: '設定',          requiredAction: 'settings.manage' },
+  { path: '/admin/dashboard',    icon: LayoutDashboard, label: 'ダッシュボード' },
+  { path: '/admin/projects',     icon: Briefcase,       label: '案件管理' },
+  { path: '/admin/applications', icon: ClipboardList,   label: '応募管理' },
+  { path: '/admin/creators',     icon: UserCheck,       label: 'クリエイター' },
+  { path: '/admin/clients',      icon: Building2,       label: '発注者' },
+  { path: '/admin/categories',   icon: Tag,             label: 'カテゴリ管理' },
+  { path: '/admin/users',        icon: Users,           label: 'ユーザー管理' },
+  { path: '/admin/settings',     icon: Settings,        label: '設定' },
 ]
 
 export function AdminSidebar() {
   const navigate = useNavigate()
-  const { can } = useAuth()
+
+  function handleLogout() {
+    sessionStorage.removeItem('admin_logged_in')
+    navigate('/admin/login')
+  }
 
   return (
     <aside className="w-64 bg-gray-900 text-white flex flex-col h-screen sticky top-0">
       <div className="p-6 border-b border-gray-800">
-        <h1 className="text-xl font-bold">FAQ-CMS</h1>
+        <h1 className="text-xl font-bold text-white">CreativeCrew</h1>
         <p className="text-xs text-gray-400 mt-1">管理画面</p>
       </div>
 
-      <nav className="flex-1 py-6 overflow-y-auto">
-        {menuItems
-          .filter(item => !item.requiredAction || can(item.requiredAction))
-          .map(({ path, icon: Icon, label }) => (
-            <NavLink
-              key={path}
-              to={path}
-              className={({ isActive }) =>
-                `w-full px-6 py-3 flex items-center gap-3 transition-all border-l-4 ${
-                  isActive
-                    ? 'bg-gray-800 border-amber-400 text-white'
-                    : 'text-gray-300 hover:bg-gray-800 hover:text-white border-transparent'
-                }`
-              }
-            >
-              <Icon className="w-5 h-5" />
-              <span className="text-sm font-medium">{label}</span>
-            </NavLink>
-          ))}
+      <nav className="flex-1 py-4 overflow-y-auto">
+        {menuItems.map(({ path, icon: Icon, label }) => (
+          <NavLink
+            key={path}
+            to={path}
+            className={({ isActive }) =>
+              `w-full px-6 py-3 flex items-center gap-3 transition-all border-l-4 ${
+                isActive
+                  ? 'bg-gray-800 border-indigo-400 text-white'
+                  : 'text-gray-300 hover:bg-gray-800 hover:text-white border-transparent'
+              }`
+            }
+          >
+            <Icon className="w-5 h-5" />
+            <span className="text-sm font-medium">{label}</span>
+          </NavLink>
+        ))}
       </nav>
 
-      <div className="px-4 py-4">
+      <div className="p-4 border-t border-gray-800">
         <button
-          onClick={() => navigate('/')}
-          className="w-full px-4 py-3 bg-amber-600 text-gray-900 rounded-lg hover:bg-amber-700 transition-colors font-medium flex items-center justify-center gap-2"
+          onClick={handleLogout}
+          className="w-full px-4 py-2 flex items-center gap-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors text-sm"
         >
-          <ArrowLeft className="w-4 h-4" />
-          公開サイトへ戻る
+          <LogOut className="w-4 h-4" />
+          ログアウト
         </button>
       </div>
 
-      <div className="p-6 border-t border-gray-800">
-        <p className="text-xs text-gray-500">© 2026 XXXXXX</p>
-        <p className="text-xs text-gray-500 mt-1">v1.0.0</p>
+      <div className="px-6 pb-4">
+        <p className="text-xs text-gray-600">© 2026 CreativeCrew</p>
+        <p className="text-xs text-gray-600">v0.1.0</p>
       </div>
     </aside>
   )

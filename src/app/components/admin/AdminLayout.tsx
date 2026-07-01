@@ -3,23 +3,22 @@ import { useState, useEffect } from 'react'
 import { AdminSidebar } from './AdminSidebar'
 import { AdminTopbar } from './AdminTopbar'
 import { DashboardPage } from './pages/DashboardPage'
-import { ArticleListPage } from './pages/ArticleListPage'
-import { ArticleEditorPage } from './pages/ArticleEditorPage'
+import { ProjectListPage } from './pages/ProjectListPage'
+import { ProjectEditorPage } from './pages/ProjectEditorPage'
+import { CreatorListPage } from './pages/CreatorListPage'
+import { CreatorDetailPage } from './pages/CreatorDetailPage'
+import { ClientListPage } from './pages/ClientListPage'
+import { ClientDetailPage } from './pages/ClientDetailPage'
+import { ApplicationListPage } from './pages/ApplicationListPage'
 import { CategoryManagementPage } from './pages/CategoryManagementPage'
-import { TagManagementPage } from './pages/TagManagementPage'
 import { UserManagementPage } from './pages/UserManagementPage'
-import { AnalyticsPage } from './pages/AnalyticsPage'
-import { ZeroHitQueriesPage } from './pages/ZeroHitQueriesPage'
-import { FeedbackPage } from './pages/FeedbackPage'
 import { SettingsPage } from './pages/SettingsPage'
-import { CsvPage } from './pages/CsvPage'
 
-// セッションベースの簡易認証チェック
 function useAdminAuth() {
-  const [isLoggedIn, setIsLoggedIn] = useState(
+  const [isLoggedIn] = useState(
     () => sessionStorage.getItem('admin_logged_in') === 'true'
   )
-  return { isLoggedIn, setIsLoggedIn }
+  return { isLoggedIn }
 }
 
 export function AdminLayout() {
@@ -40,18 +39,18 @@ export function AdminLayout() {
         <main className="flex-1 overflow-y-auto">
           <Routes>
             <Route index element={<Navigate to="dashboard" replace />} />
-            <Route path="dashboard" element={<DashboardPage />} />
-            <Route path="articles" element={<ArticleListPage />} />
-            <Route path="articles/new" element={<ArticleEditorPage />} />
-            <Route path="articles/:id/edit" element={<ArticleEditorPage />} />
-            <Route path="categories" element={<CategoryManagementPage />} />
-            <Route path="tags" element={<TagManagementPage />} />
-            <Route path="zero-hits" element={<ZeroHitQueriesPage />} />
-            <Route path="analytics" element={<AnalyticsPage />} />
-            <Route path="feedback" element={<FeedbackPage />} />
-            <Route path="users" element={<UserManagementPage />} />
-            <Route path="csv" element={<CsvPage />} />
-            <Route path="settings" element={<SettingsPage />} />
+            <Route path="dashboard"           element={<DashboardPage />} />
+            <Route path="projects"            element={<ProjectListPage />} />
+            <Route path="projects/new"        element={<ProjectEditorPage />} />
+            <Route path="projects/:id/edit"   element={<ProjectEditorPage />} />
+            <Route path="applications"        element={<ApplicationListPage />} />
+            <Route path="creators"            element={<CreatorListPage />} />
+            <Route path="creators/:id"        element={<CreatorDetailPage />} />
+            <Route path="clients"             element={<ClientListPage />} />
+            <Route path="clients/:id"         element={<ClientDetailPage />} />
+            <Route path="categories"          element={<CategoryManagementPage />} />
+            <Route path="users"               element={<UserManagementPage />} />
+            <Route path="settings"            element={<SettingsPage />} />
           </Routes>
         </main>
       </div>
